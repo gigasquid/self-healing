@@ -12,6 +12,8 @@
 
 (s/def ::earnings (s/cat :elements (s/coll-of any?)))
 (s/def ::cleaned-earnings (s/cat :clean-elements (s/coll-of int?)))
+(s/def ::average int?)
+(s/def ::report-format string?)
 
 (s/fdef clean-bad-data
         :args ::earnings
@@ -23,14 +25,14 @@
 
 (s/fdef calc-average
         :args ::cleaned-earnings
-        :ret int?)
+        :ret ::average)
 
 (defn display-report [avg]
   (str "The average is " avg))
 
 (s/fdef display-report
-        :args int?
-        :ret string?)
+        :args ::average
+        :ret ::report-format)
 
 (display-report 56)
 
@@ -73,14 +75,6 @@
     (csk/->kebab-case ?)
     (str *ns* "/" ?)))
 
-(try (report [])
-     (catch Exception e
-       (let [fname (failing-function-name e)
-             _ (println :fname fname)
-             fspec-data (get-spec-data (symbol fname))
-             _ (println :fspec-data fspec-data)]
-         fspec-data)))
-
 (defn spec-inputs-match? [args1 args2 input]
   (and (s/valid? args1 input)
        (s/valid? args2 input)))
@@ -105,9 +99,19 @@
     (some #(if (spec-matching? fspec-data failing-input %) %) candidates)))
 
 
-(find-spec-candidate-match "self-healing.core/calc-average"
-                           {:args :self-healing.core/cleaned-earnings, :ret clojure.core/int?, :fn nil}
-                           [[]])
+(try
+  (let [input []]
+    (try
+      (report input)
+      (catch Exception e
+        (let [fname (failing-function-name e)
+              _ (println :fname fname)
+              fspec-data (get-spec-data (symbol fname))
+              _ (println :fspec-data fspec-data)]
+          (find-spec-candidate-match fname fspec-data [[]])
+          )))))
+
+
 
 
 
