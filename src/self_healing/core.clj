@@ -5,8 +5,6 @@
             [self-healing.candidates :as candidates]
             [camel-snake-kebab.core :as csk]))
 
-
-
 (defn clean-bad-data [earnings]
   (filter int? earnings))
 
@@ -35,10 +33,6 @@
         :ret ::report-format)
 
 (display-report 56)
-
-(stest/instrument `clean-bad-data)
-(stest/instrument `calc-average)
-
 
 (defn report [earnings]
   (-> earnings
@@ -86,7 +80,6 @@
          (s/valid? ret2 result))))
 
 (defn spec-matching? [orig-fspec failing-input candidate]
-  (println :orig-fspec orig-fspec :failing-input failing-input :candidate candidate)
   (let [{:keys [args ret fn]} (get-spec-data candidate)]
     (and (spec-inputs-match? args (:args orig-fspec) failing-input)
          (spec-return-match? ret (:ret orig-fspec) failing-input candidate))))
@@ -105,11 +98,28 @@
       (report input)
       (catch Exception e
         (let [fname (failing-function-name e)
-              _ (println :fname fname)
               fspec-data (get-spec-data (symbol fname))
-              _ (println :fspec-data fspec-data)]
-          (find-spec-candidate-match fname fspec-data [[]])
-          )))))
+              match (find-spec-candidate-match fname fspec-data [[]])]
+          (if match
+            (do
+              (println "Found a matching candidate replacement for failing function" fname " for input" input)
+              (println "Replacing with candidate match" match)
+              (println "----------")
+              (eval  `(def ~(symbol fname) ~match))
+              (println "Calling function again")
+              (let [new-result (report input)]
+                (println "Healed function result is:" (report input))
+                new-result))
+            (println "No suitable replacment for failing function "  fname " with input " input ":(")))))))
+
+
+(comment
+ 
+  ;;; Worth notint that the divide by zero example would have been caught by using stest/check
+(defn calc-average [earnings]
+  (/ (apply + earnings) (count earnings)))
+  (stest/check `calc-average)
+  )
 
 
 
