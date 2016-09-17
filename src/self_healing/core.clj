@@ -86,9 +86,6 @@
        (s/valid? args2 input)))
 
 (defn spec-return-match? [ret1 ret2 failing-input candidate]
-  (println "class " (class candidate) (resolve candidate))
-  (println "Candidate" candidate "failing-input"  failing-input "eval " (apply (resolve candidate) failing-input))
-  (println :ret  ret1 ret2)
   (let [result (try (apply (resolve candidate) failing-input) (catch Exception e :failed))]
     (and (not= :failed result)
          (s/valid? ret1 result)
@@ -105,7 +102,7 @@
                         keys
                         (filter #(string/starts-with? (namespace %) "self-healing.candidates"))
                         (filter symbol?))]
-    (map #(spec-matching? fspec-data failing-input %) candidates)))
+    (some #(if (spec-matching? fspec-data failing-input %) %) candidates)))
 
 
 (find-spec-candidate-match "self-healing.core/calc-average"
