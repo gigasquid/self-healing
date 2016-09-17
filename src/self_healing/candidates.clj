@@ -2,18 +2,36 @@
   (:require [clojure.spec :as s]
             [clojure.spec.test :as stest]))
 
-(s/def ::numbers (s/cat :elements (s/coll-of int?)))
-(s/def ::result int?)
+(s/def ::numbers (s/cat :elements (s/coll-of number?)))
+(s/def ::result number?)
+(s/def ::result-string string?)
 
 (defn better-calc-average [earnings]
-  (if (seq earnings)
-    (/ (apply + earnings) (count earnings))
-    0))
+  (if (empty? earnings)
+    0
+    (/ (apply + earnings) (count earnings))))
 
 (s/fdef better-calc-average
         :args ::numbers
         :ret ::result)
 
+(defn bad-calc-average [earnings]
+  (if (empty? earnings)
+    0
+    (first earnings)))
+
+(s/fdef bad-calc-average
+        :args ::numbers
+        :ret ::result)
+
+(defn bad-calc-average2 [earnings]
+  (str (if (empty? earnings)
+         0
+         (/ (apply + earnings) (count earnings)))))
+
+(s/fdef bad-calc-average2
+        :args ::numbers
+        :ret ::result-string)
 
 (defn adder [n]
   (+ n 5))

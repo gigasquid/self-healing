@@ -6,11 +6,11 @@
             [camel-snake-kebab.core :as csk]))
 
 (defn clean-bad-data [earnings]
-  (filter int? earnings))
+  (filter number? earnings))
 
 (s/def ::earnings (s/cat :elements (s/coll-of any?)))
-(s/def ::cleaned-earnings (s/cat :clean-elements (s/coll-of int?)))
-(s/def ::average int?)
+(s/def ::cleaned-earnings (s/cat :clean-elements (s/coll-of number?)))
+(s/def ::average number?)
 (s/def ::report-format string?)
 
 (s/fdef clean-bad-data
@@ -20,6 +20,9 @@
 
 (defn calc-average [earnings]
   (/ (apply + earnings) (count earnings)))
+
+;;; Turn calc-average into cal whic just happens to have a side effect of printin the average - actualy returns the min 
+;; that way you can verify the match on the fn contstraints
 
 (s/fdef calc-average
         :args ::cleaned-earnings
@@ -57,7 +60,7 @@
         :fn fn}))
 
 (get-spec-data`calc-average)
-;=>{:args :self-healing.core/cleaned-earnings, :ret clojure.core/int?, :fn nil}
+;=>{:args :self-healing.core/cleaned-earnings, :ret clojure.core/number?, :fn nil}
 
 (defn failing-function-name [e]
   (as-> (.getStackTrace e) ?
@@ -73,33 +76,42 @@
   (and (s/valid? args1 input)
        (s/valid? args2 input)))
 
-(defn spec-return-match? [ret1 ret2 failing-input candidate]
-  (let [result (try (apply (resolve candidate) failing-input) (catch Exception e :failed))]
-    (and (not= :failed result)
-         (s/valid? ret1 result)
-         (s/valid? ret2 result))))
+(defn- try-fn [f input]
+  (try (apply f input) (catch Exception e :failed)))
 
-(defn spec-matching? [orig-fspec failing-input candidate]
+(defn spec-return-match? [fname ret1 ret2 seed failing-input candidate]
+  (let [rcandidate (resolve candidate)
+        orig-fn (resolve (symbol fname))
+        result-new (try-fn rcandidate failing-input)
+        result-old-seed (try-fn rcandidate seed)
+        result-new-seed (try-fn orig-fn seed)]
+    (and (not= :failed result-new)
+         (s/valid? ret1 result-new)
+         (s/valid? ret2 result-new)
+         (= result-old-seed result-new-seed))))
+
+(defn spec-matching? [fname orig-fspec seed failing-input candidate]
   (let [{:keys [args ret fn]} (get-spec-data candidate)]
     (and (spec-inputs-match? args (:args orig-fspec) failing-input)
-         (spec-return-match? ret (:ret orig-fspec) failing-input candidate))))
+         (spec-return-match? fname ret (:ret orig-fspec) seed failing-input candidate))))
 
-(defn find-spec-candidate-match [fname {:keys [args ret fn] :as fspec-data} failing-input]
+(defn find-spec-candidate-match [fname {:keys [args ret fn] :as fspec-data} seed failing-input]
   (let [candidates (->> (s/registry)
                         keys
                         (filter #(string/starts-with? (namespace %) "self-healing.candidates"))
                         (filter symbol?))]
-    (some #(if (spec-matching? fspec-data failing-input %) %) candidates)))
+    (some #(if (spec-matching? fname fspec-data seed failing-input %) %) candidates)))
 
 
 (try
-  (let [input []]
+  (let [input []
+        seed [1 2 3 4 5]]
     (try
-      (report input)
+      (calc-average input)
       (catch Exception e
         (let [fname (failing-function-name e)
               fspec-data (get-spec-data (symbol fname))
-              match (find-spec-candidate-match fname fspec-data [[]])]
+              match (find-spec-candidate-match fname fspec-data seed [input])]
           (if match
             (do
               (println "Found a matching candidate replacement for failing function" fname " for input" input)
@@ -108,7 +120,7 @@
               (eval  `(def ~(symbol fname) ~match))
               (println "Calling function again")
               (let [new-result (report input)]
-                (println "Healed function result is:" (report input))
+                (println "Healed function result is:" (calc-average input))
                 new-result))
             (println "No suitable replacment for failing function "  fname " with input " input ":(")))))))
 
@@ -118,7 +130,10 @@
   ;;; Worth notint that the divide by zero example would have been caught by using stest/check
 (defn calc-average [earnings]
   (/ (apply + earnings) (count earnings)))
-  (stest/check `calc-average)
+
+(stest/check `calc-average)
+
+
   )
 
 
