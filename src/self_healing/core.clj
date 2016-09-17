@@ -81,14 +81,24 @@
              _ (println :fspec-data fspec-data)]
          fspec-data)))
 
-(defn spec-inputs-match [])
+(defn spec-inputs-match? [args1 args2 input]
+  (and (s/valid? args1 input)
+       (s/valid? args2 input)))
+
+(defn spec-return-match? [ret1 ret2 failing-input candidate]
+  (println "class " (class candidate) (resolve candidate))
+  (println "Candidate" candidate "failing-input"  failing-input "eval " (apply (resolve candidate) failing-input))
+  (println :ret  ret1 ret2)
+  (let [result (try (apply (resolve candidate) failing-input) (catch Exception e :failed))]
+    (and (not= :failed result)
+         (s/valid? ret1 result)
+         (s/valid? ret2 result))))
 
 (defn spec-matching? [orig-fspec failing-input candidate]
   (println :orig-fspec orig-fspec :failing-input failing-input :candidate candidate)
   (let [{:keys [args ret fn]} (get-spec-data candidate)]
-    (println "trying to match " args "with " failing-input "-->"     (s/valid? args failing-input))
-    (and (s/valid? args failing-input)
-         (s/valid? (:args orig-fspec) failing-input))))
+    (and (spec-inputs-match? args (:args orig-fspec) failing-input)
+         (spec-return-match? ret (:ret orig-fspec) failing-input candidate))))
 
 (defn find-spec-candidate-match [fname {:keys [args ret fn] :as fspec-data} failing-input]
   (let [candidates (->> (s/registry)

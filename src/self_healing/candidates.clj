@@ -12,7 +12,8 @@
 
 (s/fdef better-calc-average
         :args ::numbers
-        :ret ::result)
+        :ret ::result
+        :fn #(> (apply max (-> % :elements)) (:ret %)))
 
 
 (defn adder [n]
