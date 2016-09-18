@@ -116,29 +116,39 @@
     (some #(if (spec-matching? fname fspec-data failing-input %) %) (shuffle candidates))))
 
 
-(let [input []]
-  (try
-    (calc-average input)
-    (catch Exception e
-      (let [fname (failing-function-name e)
-            _ (println "ERROR in function" fname "-- looking for replacement")
-            fspec-data (get-spec-data (symbol fname))
-            _ (println "Retriving spec information for function " fspec-data)
-            match (find-spec-candidate-match fname fspec-data [input])]
-        (if match
-          (do
-            (println "Found a matching candidate replacement for failing function" fname " for input" input)
-            (println "Replacing with candidate match" match)
-            (println "----------")
-            (eval  `(def ~(symbol fname) ~match))
-            (println "Calling function again")
-            (let [new-result (report input)]
-              (println "Healed function result is:" (calc-average input))
-              new-result))
-          (println "No suitable replacment for failing function "  fname " with input " input ":("))))))
+(defn self-heal [e input]
+  (let [fname (failing-function-name e)
+        _ (println "ERROR in function" fname "-- looking for replacement")
+        fspec-data (get-spec-data (symbol fname))
+        _ (println "Retriving spec information for function " fspec-data)
+        match (find-spec-candidate-match fname fspec-data [input])]
+    (if match
+      (do
+        (println "Found a matching candidate replacement for failing function" fname " for input" input)
+        (println "Replacing with candidate match" match)
+        (println "----------")
+        (eval `(def ~(symbol fname) ~match))
+        (println "Calling function again")
+        (let [new-result (report input)]
+          (println "Healed function result is:" (calc-average input))
+          new-result))
+      (println "No suitable replacment for failing function "  fname " with input " input ":("))))
+
+(defmacro with-healing [body]
+  `(try
+     (let [params# ~(second body)]
+       (println "CARIN!!"  params#)
+       (try ~body
+            (catch Exception e# (self-heal e# params#))))))
+
 
 
 (comment
+
+(with-healing (calc-average [1 2 3 4 5]))
+(with-healing (calc-average []))
+
+
  
   ;;; Worth notint that the divide by zero example would have been caught by using stest/check
 (defn calc-average [earnings]
