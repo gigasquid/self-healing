@@ -137,38 +137,26 @@
 (defmacro with-healing [body]
   `(try
      (let [params# ~(second body)]
-       (println "CARIN!!"  params#)
        (try ~body
             (catch Exception e# (self-heal e# params#))))))
 
 
-
 (comment
+
 
 (with-healing (calc-average [1 2 3 4 5]))
 (with-healing (calc-average []))
 
+(with-healing (report [1 2 3 4 5 "a" "b"]))
 
+(with-healing (report []))
  
   ;;; Worth notint that the divide by zero example would have been caught by using stest/check
 (defn calc-average [earnings]
   (/ (apply + earnings) (count earnings)))
 
 (stest/check `calc-average)
-
-(walk/postwalk (fn [x] (do (println "x " x (class x) (if (symbol? x) (s/get-spec (resolve x))))
-                          (if (and (seq? x) (symbol? (first x)) (s/get-spec (resolve (first  x))))
-                         `(try ~x (catch Exception e))
-                         x)))
-               '(-> earnings
-                  (clean-bad-data)
-                  (calc-average)
-                  (display-report)))
-
-(s/get-spec (resolve (symbol "clean-bad-data")))
-
-
-  )
+)
 
 
 
