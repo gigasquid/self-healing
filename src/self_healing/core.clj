@@ -2,16 +2,25 @@
   (:require [clojure.spec :as s]
             [clojure.spec.test :as stest]
             [clojure.string :as string]
+            [clojure.test.check.generators :as gen]
+            [clojure.walk :as walk]
             [self-healing.candidates :as candidates]
             [camel-snake-kebab.core :as csk]))
 
-(defn clean-bad-data [earnings]
-  (filter number? earnings))
 
-(s/def ::earnings (s/cat :elements (s/coll-of any?)))
-(s/def ::cleaned-earnings (s/cat :clean-elements (s/coll-of number?)))
+(s/def ::earnings (s/with-gen
+                    (s/cat :elements (s/coll-of any?))
+                    #(gen/return [[1 2 3 4 5 "cat" "dog"]])))
+(s/def ::cleaned-earnings (s/with-gen
+                            (s/cat :clean-elements (s/coll-of number?))
+                            #(gen/return [[1 2 3 4 5]])))
 (s/def ::average number?)
 (s/def ::report-format string?)
+
+(s/exercise ::cleaned-earnings 1)
+
+(defn clean-bad-data [earnings]
+  (filter number? earnings))
 
 (s/fdef clean-bad-data
         :args ::earnings
@@ -20,9 +29,6 @@
 
 (defn calc-average [earnings]
   (/ (apply + earnings) (count earnings)))
-
-;;; Turn calc-average into cal whic just happens to have a side effect of printin the average - actualy returns the min 
-;; that way you can verify the match on the fn contstraints
 
 (s/fdef calc-average
         :args ::cleaned-earnings
@@ -73,56 +79,63 @@
     (str *ns* "/" ?)))
 
 (defn spec-inputs-match? [args1 args2 input]
+  (println "****Comparing args" args1 args2 "with input" input)
   (and (s/valid? args1 input)
        (s/valid? args2 input)))
 
 (defn- try-fn [f input]
   (try (apply f input) (catch Exception e :failed)))
 
-(defn spec-return-match? [fname ret1 ret2 seed failing-input candidate]
+(defn spec-return-match? [fname c-fspec orig-fspec failing-input candidate]
   (let [rcandidate (resolve candidate)
         orig-fn (resolve (symbol fname))
         result-new (try-fn rcandidate failing-input)
+        [[seed]] (s/exercise (:args orig-fspec) 1)
         result-old-seed (try-fn rcandidate seed)
         result-new-seed (try-fn orig-fn seed)]
+    (println "****Comparing seed " seed "with new function")
+    (println "****Result: old" result-old-seed "new" result-new-seed)
     (and (not= :failed result-new)
-         (s/valid? ret1 result-new)
-         (s/valid? ret2 result-new)
+         (s/valid? (:ret c-fspec) result-new)
+         (s/valid? (:ret orig-fspec) result-new)
          (= result-old-seed result-new-seed))))
 
-(defn spec-matching? [fname orig-fspec seed failing-input candidate]
-  (let [{:keys [args ret fn]} (get-spec-data candidate)]
-    (and (spec-inputs-match? args (:args orig-fspec) failing-input)
-         (spec-return-match? fname ret (:ret orig-fspec) seed failing-input candidate))))
+(defn spec-matching? [fname orig-fspec failing-input candidate]
+  (println "----------")
+  (println "**Looking at candidate " candidate)
+  (let [c-fspec (get-spec-data candidate)]
+    (and (spec-inputs-match? (:args c-fspec) (:args orig-fspec) failing-input)
+         (spec-return-match? fname c-fspec orig-fspec  failing-input candidate))))
 
-(defn find-spec-candidate-match [fname {:keys [args ret fn] :as fspec-data} seed failing-input]
+(defn find-spec-candidate-match [fname fspec-data failing-input]
   (let [candidates (->> (s/registry)
                         keys
                         (filter #(string/starts-with? (namespace %) "self-healing.candidates"))
                         (filter symbol?))]
-    (some #(if (spec-matching? fname fspec-data seed failing-input %) %) candidates)))
+    (println "Checking candidates " candidates)
+    (some #(if (spec-matching? fname fspec-data failing-input %) %) (shuffle candidates))))
 
 
-(try
-  (let [input []
-        seed [1 2 3 4 5]]
-    (try
-      (calc-average input)
-      (catch Exception e
-        (let [fname (failing-function-name e)
-              fspec-data (get-spec-data (symbol fname))
-              match (find-spec-candidate-match fname fspec-data seed [input])]
-          (if match
-            (do
-              (println "Found a matching candidate replacement for failing function" fname " for input" input)
-              (println "Replacing with candidate match" match)
-              (println "----------")
-              (eval  `(def ~(symbol fname) ~match))
-              (println "Calling function again")
-              (let [new-result (report input)]
-                (println "Healed function result is:" (calc-average input))
-                new-result))
-            (println "No suitable replacment for failing function "  fname " with input " input ":(")))))))
+(let [input []]
+  (try
+    (calc-average input)
+    (catch Exception e
+      (let [fname (failing-function-name e)
+            _ (println "ERROR in function" fname "-- looking for replacement")
+            fspec-data (get-spec-data (symbol fname))
+            _ (println "Retriving spec information for function " fspec-data)
+            match (find-spec-candidate-match fname fspec-data [input])]
+        (if match
+          (do
+            (println "Found a matching candidate replacement for failing function" fname " for input" input)
+            (println "Replacing with candidate match" match)
+            (println "----------")
+            (eval  `(def ~(symbol fname) ~match))
+            (println "Calling function again")
+            (let [new-result (report input)]
+              (println "Healed function result is:" (calc-average input))
+              new-result))
+          (println "No suitable replacment for failing function "  fname " with input " input ":("))))))
 
 
 (comment
@@ -132,6 +145,17 @@
   (/ (apply + earnings) (count earnings)))
 
 (stest/check `calc-average)
+
+(walk/postwalk (fn [x] (do (println "x " x (class x) (if (symbol? x) (s/get-spec (resolve x))))
+                          (if (and (seq? x) (symbol? (first x)) (s/get-spec (resolve (first  x))))
+                         `(try ~x (catch Exception e))
+                         x)))
+               '(-> earnings
+                  (clean-bad-data)
+                  (calc-average)
+                  (display-report)))
+
+(s/get-spec (resolve (symbol "clean-bad-data")))
 
 
   )
