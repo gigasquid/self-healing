@@ -83,5 +83,3 @@
             (catch Exception e# (self-heal e# params# orig-form#))))))
 
 
-;;;Note I didn't validate the fn on the spec but it could be easily added
-

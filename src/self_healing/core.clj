@@ -7,9 +7,8 @@
             [self-healing.healing :as healing]))
 
 
-(s/def ::earnings (s/with-gen
-                    (s/cat :elements (s/coll-of any?))
-                    #(gen/return [[1 2 3 4 5 "cat" "dog"]])))
+(s/def ::earnings (s/cat :elements (s/coll-of any?)))
+
 (s/def ::cleaned-earnings (s/with-gen
                             (s/cat :clean-elements (s/coll-of number?))
                             #(gen/return [[1 2 3 4 5]])))
@@ -23,8 +22,7 @@
 
 (s/fdef clean-bad-data
         :args ::earnings
-        :ret ::cleaned-earnings
-        :fn #(>= (count (->  % :elements)) (count (-> % :ret :clean-elements))))
+        :ret ::cleaned-earnings)
 
 (defn calc-average [earnings]
   (/ (apply + earnings) (count earnings)))
@@ -67,7 +65,7 @@
 
 ;; We also could have used the post fn comparisions for extra validation
  
-  ;;; Worth notint that the divide by zero example would have been caught by using stest/check
+  ;;; Worth noting that the divide by zero example would have been caught by using stest/check
 (defn calc-average [earnings]
   (/ (apply + earnings) (count earnings)))
 
