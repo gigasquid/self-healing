@@ -1,7 +1,6 @@
 (ns self-healing.healing
   (:require [clojure.spec :as s]
-            [clojure.string :as string]
-            [camel-snake-kebab.core :as csk]))
+            [clojure.string :as string]))
 
 (defn get-spec-data [spec-symb]
   (let [[_ _ args _ ret _ fn] (s/form spec-symb)]
