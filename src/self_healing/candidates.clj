@@ -25,7 +25,8 @@
         :ret ::result)
 
 (defn bad-calc-average2 [earnings]
-  (str (if (empty? earnings)
+  (str "This is a string "
+       (if (empty? earnings)
          0
          (/ (apply + earnings) (count earnings)))))
 

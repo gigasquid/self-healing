@@ -57,9 +57,9 @@
     (some #(if (spec-matching? fname fspec-data failing-input %) %) (shuffle candidates))))
 
 
-(defn self-heal [e input]
+(defn self-heal [e input orig-form]
   (let [fname (failing-function-name e)
-        _ (println "ERROR in function" fname "-- looking for replacement")
+        _ (println "ERROR in function" fname (.getMessage e) "-- looking for replacement")
         fspec-data (get-spec-data (symbol fname))
         _ (println "Retriving spec information for function " fspec-data)
         match (find-spec-candidate-match fname fspec-data [input])]
@@ -70,19 +70,18 @@
         (println "----------")
         (eval `(def ~(symbol fname) ~match))
         (println "Calling function again")
-        (let [new-result (eval `(~(symbol fname) ~input))]
+        (let [new-result (eval orig-form)]
           (println "Healed function result is:" new-result)
           new-result))
       (println "No suitable replacment for failing function "  fname " with input " input ":("))))
 
 (defmacro with-healing [body]
   `(try
-     (let [orig-fn# ~(first body)
+     (let [orig-form# '~body
            params# ~(second body)]
        (try ~body
-            (catch Exception e# (self-heal e# params#))))))
+            (catch Exception e# (self-heal e# params# orig-form#))))))
 
-(comment 
-(get-spec-data`calc-average)
-;=>{:args :self-healing.core/cleaned-earnings, :ret clojure.core/number?, :fn nil}
-)
+
+;;;Note I didn't validate the fn on the spec but it could be easily added
+
