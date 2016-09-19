@@ -75,10 +75,8 @@
       (println "No suitable replacment for failing function "  fname " with input " input ":("))))
 
 (defmacro with-healing [body]
-  `(try
-     (let [orig-form# '~body
-           params# ~(second body)]
-       (try ~body
-            (catch Exception e# (self-heal e# params# orig-form#))))))
+  (let [params (second body)]
+    `(try ~body
+          (catch Exception e# (self-heal e# ~params '~body)))))
 
 
