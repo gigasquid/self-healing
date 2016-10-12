@@ -16,9 +16,13 @@
 (s/def ::report-format string?)
 
 (s/exercise ::cleaned-earnings 1)
+;=> ([[[1 2 3 4 5]] {:clean-elements [1 2 3 4 5]}])
 
 (defn clean-bad-data [earnings]
   (filter number? earnings))
+
+(clean-bad-data [1 2 "cat" 3])
+;=>(1 2 3)
 
 (s/fdef clean-bad-data
         :args ::earnings
@@ -49,9 +53,12 @@
 
 (s/fdef report
         :args ::earnings
-        :ret string?)
+        :ret ::report-format)
 
-(report [1 2 3 4 5]) ;=> "The average is 3"
+(report [1 2 3 4 5])
+;=> "The average is 3"
+
+
 
 (comment
 
@@ -60,8 +67,10 @@
 (healing/with-healing (calc-average []))
 
 (healing/with-healing (report [1 2 3 4 5 "a" "b"]))
+;=>"The average is 3"
 
 (healing/with-healing (report []))
+;=>"The average is 0"
 
 ;; We also could have used the post fn comparisions for extra validation
  
