@@ -56,7 +56,7 @@
 
 
 (s/fdef report
-        :args ::earnings
+        :args ::earnings-params
         :ret ::report-format)
 
 (report [1 2 3 4 5])
